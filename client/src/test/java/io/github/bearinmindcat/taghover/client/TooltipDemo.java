@@ -57,7 +57,8 @@ public final class TooltipDemo {
 
         AtomicReference<TooltipDemo> demo = new AtomicReference<>();
         SwingUtilities.invokeAndWait(() -> demo.set(new TooltipDemo()));
-        TagHoverTooltip.install(ComponentLocator.DEFAULT);
+        // Settings stay in memory, so the demo never changes the user's real Tag Hover settings.
+        TagHoverTooltip.install(ComponentLocator.DEFAULT, SettingsStore.inMemory(TagHoverSettings.DEFAULT));
 
         if (check) {
             int failures = demo.get().runChecks(outDir);
@@ -184,8 +185,111 @@ public final class TooltipDemo {
         failures += quiet ? 0 : 1;
         System.out.printf("%s  %-20s%n", quiet ? "PASS" : "FAIL", "no-ctrl-no-tooltip");
 
+        failures += hotkeyChecks(outDir);
+
         System.out.println(failures == 0 ? "All demo checks passed." : failures + " demo check(s) failed.");
         return failures;
+    }
+
+    /** Other hotkeys, toggle mode and shortcuts. Returns the number of failures. */
+    private int hotkeyChecks(File outDir) throws Exception {
+        Component first = checks.get(0).target();
+        Component second = checks.get(1).target();
+        int failures = 0;
+        long t = System.currentTimeMillis();
+
+        // Hold Ctrl, press C (Ctrl+C): the tooltip goes and stays away until Ctrl is let go.
+        install(KeyEvent.VK_CONTROL, TagHoverSettings.Mode.HOLD);
+        onEdt(() -> hover(first, true));
+        boolean before = shown("Level");
+        key(KeyEvent.KEY_PRESSED, KeyEvent.VK_C, InputEvent.CTRL_DOWN_MASK, t);
+        onEdt(() -> hover(first, true));
+        boolean away = !shown("Level");
+        key(KeyEvent.KEY_RELEASED, KeyEvent.VK_CONTROL, 0, t + 50);
+        onEdt(() -> hover(first, true));
+        failures += report("hold-ctrl-c-stays-away", before && away && shown("Level"));
+
+        // F2 held: shows while it is down, and F2 itself is consumed so it does nothing else.
+        install(KeyEvent.VK_F2, TagHoverSettings.Mode.HOLD);
+        onEdt(() -> hover(first, false));
+        boolean quietBefore = shown(null);
+        boolean consumed = key(KeyEvent.KEY_PRESSED, KeyEvent.VK_F2, 0, t);
+        boolean shownOnPress = shown("Level");
+        onEdt(() -> hover(second, false));
+        boolean followsMouse = shown("Motors");
+        key(KeyEvent.KEY_RELEASED, KeyEvent.VK_F2, 0, t + 300);
+        failures += report("hold-f2", quietBefore && consumed && shownOnPress && followsMouse && shown(null));
+
+        // Toggle mode: a tap of Ctrl turns hover mode on, the tooltip follows the mouse with no key held,
+        // and Esc turns it off.
+        install(KeyEvent.VK_CONTROL, TagHoverSettings.Mode.TOGGLE);
+        onEdt(() -> hover(first, false));
+        boolean offAtFirst = shown(null);
+        tap(KeyEvent.VK_CONTROL, t, 100);
+        boolean onAfterTap = shown("Esc to stop");
+        onEdt(() -> hover(second, false));
+        boolean follows = shown("Motors");
+        onEdt(() -> screenshot(new File(outDir, "20-toggle-mode.png")));
+        boolean escConsumed = key(KeyEvent.KEY_PRESSED, KeyEvent.VK_ESCAPE, 0, t + 200);
+        boolean offAfterEsc = shown(null);
+        onEdt(() -> hover(first, false));
+        failures += report("toggle-tap-and-esc",
+            offAtFirst && onAfterTap && follows && escConsumed && offAfterEsc && shown(null));
+
+        // Toggle mode: tapping again turns it off.
+        tap(KeyEvent.VK_CONTROL, t + 1000, 100);
+        boolean on = shown("Level");
+        tap(KeyEvent.VK_CONTROL, t + 2000, 100);
+        failures += report("toggle-tap-twice", on && shown(null));
+
+        // Toggle mode: Ctrl held a long time, or used for Ctrl+C, is not a tap.
+        tap(KeyEvent.VK_CONTROL, t + 3000, 900);
+        boolean longHoldIgnored = shown(null);
+        key(KeyEvent.KEY_PRESSED, KeyEvent.VK_CONTROL, InputEvent.CTRL_DOWN_MASK, t + 4000);
+        key(KeyEvent.KEY_PRESSED, KeyEvent.VK_C, InputEvent.CTRL_DOWN_MASK, t + 4050);
+        key(KeyEvent.KEY_RELEASED, KeyEvent.VK_CONTROL, 0, t + 4100);
+        failures += report("toggle-not-a-tap", longHoldIgnored && shown(null));
+
+        // Toggle mode: a click hides the tooltip, and the next mouse move brings it back.
+        tap(KeyEvent.VK_CONTROL, t + 5000, 100);
+        onEdt(() -> first.dispatchEvent(new MouseEvent(first, MouseEvent.MOUSE_PRESSED, t + 5200, 0,
+            first.getWidth() / 2, first.getHeight() / 2, 1, false, MouseEvent.BUTTON1)));
+        boolean hiddenOnClick = shown(null);
+        onEdt(() -> hover(first, false));
+        failures += report("toggle-click", hiddenOnClick && shown("Level"));
+        tap(KeyEvent.VK_CONTROL, t + 6000, 100);
+
+        install(KeyEvent.VK_CONTROL, TagHoverSettings.Mode.HOLD);
+        return failures;
+    }
+
+    private static void install(int keyCode, TagHoverSettings.Mode mode) {
+        TagHoverTooltip.install(ComponentLocator.DEFAULT, SettingsStore.inMemory(new TagHoverSettings(keyCode, mode)));
+    }
+
+    private boolean key(int id, int keyCode, int modifiers, long when) throws Exception {
+        AtomicReference<Boolean> consumed = new AtomicReference<>(false);
+        onEdt(() -> consumed.set(TagHoverTooltip.dispatch(
+            new KeyEvent(frame, id, when, modifiers, keyCode, KeyEvent.CHAR_UNDEFINED))));
+        return consumed.get();
+    }
+
+    private void tap(int keyCode, long when, long heldMillis) throws Exception {
+        int mask = keyCode == KeyEvent.VK_CONTROL ? InputEvent.CTRL_DOWN_MASK : 0;
+        key(KeyEvent.KEY_PRESSED, keyCode, mask, when);
+        key(KeyEvent.KEY_RELEASED, keyCode, 0, when + heldMillis);
+    }
+
+    /** With {@code null}: no tooltip is showing. Otherwise: a tooltip containing {@code text} is showing. */
+    private static boolean shown(String text) throws Exception {
+        AtomicReference<String> html = new AtomicReference<>();
+        onEdt(() -> html.set(TagHoverTooltip.shownHtml()));
+        return text == null ? html.get() == null : html.get() != null && html.get().contains(text);
+    }
+
+    private static int report(String name, boolean ok) {
+        System.out.printf("%s  %s%n", ok ? "PASS" : "FAIL", name);
+        return ok ? 0 : 1;
     }
 
     /** Dispatches a synthetic mouse move through AWT, so the real AWTEventListener sees it. */

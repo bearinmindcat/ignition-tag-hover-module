@@ -54,6 +54,19 @@ class TagReportTest {
     }
 
     @Test
+    void hintGoesUnderTheBindingsEvenWhenCapped() {
+        List<BindingLine> lines = new ArrayList<>();
+        for (int i = 0; i < TagReport.MAX_LINES + 1; i++) {
+            lines.add(new BindingLine("p" + i, "tag", "[default]T" + i, null, null, null, false));
+        }
+        String html = new TagReport(null, List.of(new Section("Big", null, false, lines))).toHtml("Tap F2 & go");
+
+        assertTrue(html.endsWith("Tap F2 &amp; go</font></html>"), html);
+        assertTrue(html.indexOf("1 more") < html.indexOf("Tap F2"), html);
+        assertEquals(1, html.split("<html>", -1).length - 1, "one <html> wrapper: " + html);
+    }
+
+    @Test
     void tooltipStaysOnScreen() {
         Rectangle screen = new Rectangle(0, 0, 1920, 1040);
         Dimension size = new Dimension(300, 80);

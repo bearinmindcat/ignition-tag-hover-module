@@ -24,6 +24,7 @@ There's no built-in way to see which tag drives a value on a running Vision scre
 - **Property bindings followed back to the tag**, for example a label bound to a custom property that is bound to a tag.
 - **Templates:** shows the template instance's tag parameters.
 - **Quality and write-back:** flags bad quality (e.g. `Bad_NotFound`) and marks bidirectional bindings with `↔`.
+- **Your own key, held or tapped:** each user picks the key, and can choose to tap it to turn tag hover on and off instead of holding it.
 - **Free module:** no license and no trial timer.
 
 ## Requirements
@@ -45,6 +46,19 @@ There's no built-in way to see which tag drives a value on a running Vision scre
 ## Usage
 
 Hold **Ctrl** and hover over a component. The tooltip disappears when you release Ctrl, click, scroll, or press a Ctrl shortcut such as Ctrl+C.
+
+### Settings
+
+Press **Ctrl+Comma** in a Vision client or the Designer (in the Designer, also **Tools → Tag Hover Settings…**) to choose:
+
+- **Key:** Ctrl, Shift, Alt, F1–F12, Insert, Pause or Scroll Lock.
+- **Mode:**
+  - **Hold** (the default): tags show while the key is down.
+  - **Tap:** one tap turns tag hover on, and the tooltip follows the mouse with no key held. Tap again or press Esc to turn it off. Clicking and typing work as usual in the meantime.
+
+Settings are saved for each Windows user on each computer, so anyone can pick their own, with no Gateway admin needed. A function key chosen as the hotkey does nothing else while it is the hotkey; for example, F5 then no longer switches the Designer to Preview Mode.
+
+To open the settings from a client menu, add a client menu item whose script calls `system.taghover.openSettings()`.
 
 ## Building
 
@@ -80,7 +94,7 @@ ignition.signing.certPassword=...
 
 ## How it works
 
-Vision stores each window's bindings in an internal `InteractionController`. The module listens for Ctrl and mouse movement application-wide, finds the component under the pointer, and reads that component's bindings. Windows and components are never modified.
+Vision stores each window's bindings in an internal `InteractionController`. The module listens for the hotkey and mouse movement application-wide, finds the component under the pointer, and reads that component's bindings. Windows and components are never modified.
 
 These are internal Vision classes, not a published API, so a future Ignition version may need a small update.
 

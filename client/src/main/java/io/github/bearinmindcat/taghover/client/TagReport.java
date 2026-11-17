@@ -41,7 +41,19 @@ public record TagReport(Component anchor, List<Section> sections) {
     }
 
     public String toHtml() {
-        StringBuilder sb = new StringBuilder("<html>");
+        return toHtml(null);
+    }
+
+    /** @param hint a short gray line under the bindings (plain text), or {@code null} */
+    public String toHtml(String hint) {
+        String body = bodyHtml();
+        return hint == null
+            ? "<html>" + body + "</html>"
+            : "<html>" + body + "<br><font color=gray size=-1>" + esc(hint) + "</font></html>";
+    }
+
+    private String bodyHtml() {
+        StringBuilder sb = new StringBuilder();
         int shown = 0;
         int total = sections.stream().mapToInt(s -> s.lines().size()).sum();
 
@@ -70,7 +82,7 @@ public record TagReport(Component anchor, List<Section> sections) {
             for (BindingLine line : section.lines()) {
                 if (shown == MAX_LINES) {
                     sb.append("<br><font color=gray>&hellip; ").append(total - shown).append(" more</font>");
-                    return sb.append("</html>").toString();
+                    return sb.toString();
                 }
                 shown++;
                 sb.append("<br>&nbsp;&nbsp;").append(esc(line.property()))
@@ -95,7 +107,7 @@ public record TagReport(Component anchor, List<Section> sections) {
                 }
             }
         }
-        return sb.append("</html>").toString();
+        return sb.toString();
     }
 
     private static void appendNote(StringBuilder notes, String note) {
