@@ -38,10 +38,13 @@ Also: direct and UDT tag bindings, property bindings followed back to their tag,
 
 ## Installation
 
-1. Download `Tag-Hover-Tooltip.unsigned.modl` from [Releases](https://github.com/bearinmindcat/ignition-tag-hover-module/releases).
-2. Allow unsigned modules: add `wrapper.java.additional.N=-Dignition.allowunsignedmodules=true` (with the next free `N`) to `ignition.conf`, then restart the Gateway.
-3. In the Gateway, go to **Config → Modules → Install or Upgrade a Module** and choose the file.
-4. Reopen Vision clients and the Designer.
+1. Download `Tag-Hover-Tooltip.modl` from [Releases](https://github.com/bearinmindcat/ignition-tag-hover-module/releases).
+2. In the Gateway, go to **Config → Modules → Install or Upgrade a Module** and choose the file. The first time, the Gateway asks you to trust its certificate (`bearinmindcat`).
+3. Reopen the Designer. Vision clients that are already open pick it up without a restart.
+
+Uninstalling from the same page removes it from open clients too, without interrupting them.
+
+<sub>Building it yourself, or prefer an unsigned build? `Tag-Hover-Tooltip.unsigned.modl` is on each release too; it needs `wrapper.java.additional.N=-Dignition.allowunsignedmodules=true` (the next free `N`) in `ignition.conf` and a Gateway restart.</sub>
 
 ## Usage
 
