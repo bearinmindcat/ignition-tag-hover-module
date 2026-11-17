@@ -7,7 +7,7 @@ An Ignition Vision module. Hold **Ctrl** and hover over any component, in a runn
 
 ![Tooltip showing a label's tag, traced through a template parameter](docs/tooltip-demo.png)
 
-> **Status:** early development. The module builds and its tests pass against the Ignition 8.1.35 SDK, but it has not been tested on a live Gateway yet. There is no release yet.
+> **Status:** early development, no release yet. Tested on an Ignition 8.1.35 Gateway in the Designer (design and preview mode) and in a Vision client, with direct, indirect, UDT member and expression bindings.
 
 ## Why
 
