@@ -1,0 +1,66 @@
+plugins {
+    id("io.ia.sdk.modl") version "0.5.0"
+}
+
+// Ignition SDK version to compile against. Must not be newer than the target Gateway.
+val sdkVersion by extra("8.1.35")
+
+// The version comes from gradle.properties; release builds override it with -Pversion=x.y.z.
+allprojects {
+    group = "io.github.bearinmindcat.taghover"
+}
+
+subprojects {
+    apply(plugin = "java-library")
+
+    repositories {
+        mavenCentral()
+        maven { url = uri("https://nexus.inductiveautomation.com/repository/public/") }
+    }
+
+    // The 8.1.35 SDK is published as Java 17 libraries (Gateways and clients on this version run Java 17).
+    tasks.withType<JavaCompile>().configureEach {
+        options.release.set(17)
+        options.encoding = "UTF-8"
+    }
+}
+
+ignitionModule {
+    name.set("Tag Hover Tooltip")
+    fileName.set("Tag-Hover-Tooltip.modl")
+    id.set("io.github.bearinmindcat.taghover")
+    moduleVersion.set("${project.version}")
+    moduleDescription.set("Hold Ctrl and hover over a Vision component to see the tags it is bound to.")
+    // Compiled against (and to the Java level of) the SDK above, so don't claim older Gateways.
+    requiredIgnitionVersion.set(sdkVersion)
+    requiredFrameworkVersion.set("8")
+    freeModule.set(true)
+
+    // The client jar holds all the tooltip logic and is loaded in both Vision clients and the Designer.
+    projectScopes.putAll(
+        mapOf(
+            ":client" to "CD",
+            ":designer" to "D",
+            ":gateway" to "G",
+        )
+    )
+
+    // Depend on Vision ("fpmi") so our classloader can see Vision's classes in clients and the Designer.
+    moduleDependencySpecs {
+        register("fpmi") {
+            scope = "CD"
+            required = true
+        }
+    }
+
+    hooks.putAll(
+        mapOf(
+            "io.github.bearinmindcat.taghover.client.ClientHook" to "C",
+            "io.github.bearinmindcat.taghover.designer.DesignerHook" to "D",
+            "io.github.bearinmindcat.taghover.gateway.GatewayHook" to "G",
+        )
+    )
+
+    // Unsigned for now: the test Gateway needs -Dignition.allowunsignedmodules=true.
+    skipModlSigning.set(true)
+}

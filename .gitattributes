@@ -1,0 +1,9 @@
+* text=auto
+
+# Scripts must keep their native line endings to run.
+gradlew text eol=lf
+*.bat text eol=crlf
+
+*.jar binary
+*.modl binary
+*.png binary
