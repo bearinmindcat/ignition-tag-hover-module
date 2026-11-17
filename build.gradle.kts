@@ -61,6 +61,7 @@ ignitionModule {
         )
     )
 
-    // Unsigned for now: the test Gateway needs -Dignition.allowunsignedmodules=true.
-    skipModlSigning.set(true)
+    // Signs when the ignition.signing.* properties are set (e.g. in ~/.gradle/gradle.properties);
+    // otherwise builds an unsigned module, which needs -Dignition.allowunsignedmodules=true on the Gateway.
+    skipModlSigning.set((findProperty("ignition.signing.keystoreFile") as String?).isNullOrBlank())
 }

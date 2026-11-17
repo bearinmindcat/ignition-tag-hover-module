@@ -56,6 +56,20 @@ Requires JDK 17 or 21. The Gradle wrapper downloads everything else.
 
 The module is written to `build/Tag-Hover-Tooltip.unsigned.modl`.
 
+### Signed builds
+
+A signed module installs without the unsigned-modules flag. The Gateway asks once whether to trust its certificate, and later versions signed with the same certificate install without asking. To sign, add your keystore details to `~/.gradle/gradle.properties`:
+
+```
+ignition.signing.keystoreFile=/path/to/keystore.pfx
+ignition.signing.keystorePassword=...
+ignition.signing.certFile=/path/to/cert.p7b
+ignition.signing.certAlias=...
+ignition.signing.certPassword=...
+```
+
+`./gradlew build` then also writes the signed `build/Tag-Hover-Tooltip.modl`.
+
 ## Testing
 
 ```
