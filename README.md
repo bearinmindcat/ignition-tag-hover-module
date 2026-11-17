@@ -10,7 +10,7 @@ Hold **Ctrl** and hover over any Vision component, in a client or the Designer, 
 <p align="center">
   <img src="docs/demo.gif" alt="A Vision client: with Ctrl held, tooltips list the tags behind a level label, a tank, an expression label and an indirect motor speed; switching the motor to Motor2 makes the indirect binding follow; Ctrl+Comma opens the settings, Press a key sets F2, tap mode is chosen, and a tap of F2 keeps the tooltips on until Esc" width="100%">
   <br>
-  <sub>A Vision client on Ignition 8.1.35: hold Ctrl, switch the motor and watch the indirect binding follow, then set F2 and tap mode in the settings. About 1:10. The <a href="docs/demo.mp4">full video</a> (MP4) is the same at full resolution. It works the same way in the Designer.</sub>
+  <sub>A Vision client on Ignition 8.1.35: hold Ctrl, switch the motor and watch the indirect binding follow, then set F2 and tap mode in the settings. About 0:50, sped up; the <a href="docs/demo.mp4">full video</a> (MP4, 1:11) plays at real speed and full resolution. It works the same way in the Designer.</sub>
 </p>
 
 Forum threads: [Vision: Tag Info popup on tag(s) under mouse](https://forum.inductiveautomation.com/t/vision-tag-info-popup-on-tag-s-under-mouse/25937) · [Determine origin of tips in the Ignition SCADA HMI](https://forum.inductiveautomation.com/t/determine-origin-of-tips-in-the-ignition-scada-hmi/111100)
