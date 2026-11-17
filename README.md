@@ -7,17 +7,28 @@
 
 Hold **Ctrl** and hover over any Vision component, in a client or the Designer, to see which tags it's bound to.
 
-![Tooltip listing a Numeric Label's tag bindings](docs/tooltip.png)
+<p align="center">
+  <img src="docs/demo.gif" alt="A Vision client: with Ctrl held, tooltips list the tags behind a level label, a tank, an expression label and an indirect motor speed; switching the motor to Motor2 makes the indirect binding follow; Ctrl+Comma opens the settings, Press a key sets F2, tap mode is chosen, and a tap of F2 keeps the tooltips on until Esc" width="100%">
+  <br>
+  <sub>A Vision client on Ignition 8.1.35: hold Ctrl, switch the motor and watch the indirect binding follow, then set F2 and tap mode in the settings. About 1:10. The <a href="docs/demo.mp4">full video</a> (MP4) is the same at full resolution. It works the same way in the Designer.</sub>
+</p>
 
 Forum threads: [Vision: Tag Info popup on tag(s) under mouse](https://forum.inductiveautomation.com/t/vision-tag-info-popup-on-tag-s-under-mouse/25937) · [Determine origin of tips in the Ignition SCADA HMI](https://forum.inductiveautomation.com/t/determine-origin-of-tips-in-the-ignition-scada-hmi/111100)
 
 ## Features
 
-- Works on every window and template, with nothing to set up per tag or project
-- Direct, indirect, UDT and expression bindings, plus property bindings followed back to their tag
-- Resolved paths for indirect bindings, bad quality flags, and `↔` for bidirectional bindings
-- Each user picks their own key, held or tapped on and off
-- Free, with no license or trial timer
+<table>
+<tr>
+<td width="50%"><img src="docs/indirect.png" alt="Ctrl held over a motor speed label: value comes from [default]TagHoverTest/Motor2/Speed, an indirect binding with the pattern [default]TagHoverTest/{1}/Speed"><br><sub>Indirect bindings show the tag they resolve to right now, and the pattern behind it.</sub></td>
+<td width="50%"><img src="docs/expression.png" alt="Ctrl held over a label bound to an expression: its text reads Tank1Mode and Tank1HighAlarm"><br><sub>Expressions list every tag they read, whether written as <code>{...}</code> or <code>tag("...")</code>.</sub></td>
+</tr>
+<tr>
+<td width="50%"><img src="docs/settings.png" alt="The Tag Hover Settings window: the key set to F2 with Press a key, and the choice between holding and tapping it"><br><sub>Ctrl+Comma opens the settings. Pick a key from the list or press it, and choose to hold or tap it. Saved per Windows user.</sub></td>
+<td width="50%"><img src="docs/tap-mode.png" alt="Tap mode: the tooltip over a tank stays on with no key held, with the hint Tap F2 or press Esc to stop"><br><sub>Tap mode: one tap and the tooltips follow the mouse with no key held, until another tap or Esc.</sub></td>
+</tr>
+</table>
+
+Also: direct and UDT tag bindings, property bindings followed back to their tag, template parameters, bad quality flags, and `↔` for bidirectional bindings. It works on every window with nothing to set up, and it's free, with no license or trial timer.
 
 ## Requirements
 
@@ -36,7 +47,7 @@ Forum threads: [Vision: Tag Info popup on tag(s) under mouse](https://forum.indu
 
 Hold **Ctrl** and hover over a component. The tooltip goes away when you let go, click, scroll, or press a shortcut such as Ctrl+C.
 
-Press **Ctrl+Comma** to open the settings, or in the Designer use **Tools → Tag Hover Settings…**. Choose a key from the list, or click **Press a key…** and press it. You can also switch to **Tap** mode, where one tap turns tag hover on and another tap or Esc turns it off. Settings are saved per Windows user. Scripts can open them with `system.taghover.openSettings()`, for example from a client menu item.
+Press **Ctrl+Comma** to open the settings, or in the Designer use **Tools → Tag Hover Settings…**. Scripts can open them with `system.taghover.openSettings()`, for example from a client menu item.
 
 ## Building
 
