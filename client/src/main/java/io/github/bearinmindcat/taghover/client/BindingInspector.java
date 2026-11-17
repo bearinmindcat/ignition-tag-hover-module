@@ -230,6 +230,7 @@ public final class BindingInspector {
         }
 
         List<Adapter> sourceAdapters = adaptersForProperty(sourceComponent, sourceProperty);
+        Component viaComponent = sourceComponent;
 
         // Template parameters are properties of the template's root, but they are bound on the
         // template instance (TemplateHolder) in the outer window.
@@ -240,10 +241,13 @@ public final class BindingInspector {
             }
             if (holder instanceof TemplateHolder) {
                 sourceAdapters = adaptersForProperty(holder, sourceProperty);
+                // Name the instance's parameter, where the tag is bound. The template root's own path
+                // repeats the template name (Root Container.Motor.Motor.Param).
+                viaComponent = holder;
             }
         }
 
-        String via = joinPath(pathOf(sourceComponent), sourceProperty);
+        String via = joinPath(pathOf(viaComponent), sourceProperty);
         List<BindingLine> lines = new ArrayList<>();
         for (Adapter a : sourceAdapters) {
             for (BindingLine l : linesForAdapter(a, depth + 1, visited)) {

@@ -130,6 +130,7 @@ class BindingInspectorTest {
         bindTag(controller, holder, "TagPath", "[default]Motors/M1");
 
         VisionTemplate template = new VisionTemplate();
+        template.setName("Motor"); // A real template root is named after the template.
         DefaultInteractionController templateController = new DefaultInteractionController();
         template.setInteractionController(templateController);
         addTo(holder, template);
@@ -142,6 +143,9 @@ class BindingInspectorTest {
         assertNotNull(report);
         BindingLine traced = onlyLine(report.sections().get(0));
         assertEquals("[default]Motors/M1", traced.tagPath());
+        // Via the instance's parameter, not the template root's (which would read "Motor 1.Motor.TagPath").
+        assertTrue(traced.via().endsWith("Motor 1.TagPath"), traced.via());
+        assertFalse(traced.via().contains("Motor.TagPath"), traced.via());
 
         assertEquals(2, report.sections().size());
         Section templateSection = report.sections().get(1);
