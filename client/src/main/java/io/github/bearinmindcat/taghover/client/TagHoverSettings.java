@@ -36,6 +36,11 @@ public record TagHoverSettings(int keyCode, Mode mode) {
         }
     }
 
+    /** Whether {@code keyCode} can be the hotkey: one of {@link #KEY_CHOICES}. */
+    public static boolean isAllowedKey(int keyCode) {
+        return KEY_CHOICES.contains(keyCode);
+    }
+
     /** Ctrl, Shift and Alt also combine with other keys, so they keep working for shortcuts. */
     public boolean isModifierKey() {
         return keyCode == KeyEvent.VK_CONTROL || keyCode == KeyEvent.VK_SHIFT || keyCode == KeyEvent.VK_ALT;

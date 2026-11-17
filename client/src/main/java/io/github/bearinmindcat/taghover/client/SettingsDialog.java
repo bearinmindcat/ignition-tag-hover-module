@@ -7,8 +7,12 @@ import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
 import java.awt.Window;
+import java.awt.event.FocusAdapter;
+import java.awt.event.FocusEvent;
+import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 import javax.swing.BorderFactory;
+import javax.swing.Box;
 import javax.swing.ButtonGroup;
 import javax.swing.DefaultListCellRenderer;
 import javax.swing.JButton;
@@ -24,6 +28,8 @@ import javax.swing.UIManager;
 
 /** The Tag Hover Settings window: which key, and hold or tap. */
 final class SettingsDialog {
+
+    private static final String RECORD = "Press a key...";
 
     private SettingsDialog() {}
 
@@ -59,6 +65,58 @@ final class SettingsDialog {
 
         setFields(key, hold, toggle, current);
 
+        // "Press a key...": the next key pressed becomes the hotkey, if it's one that doesn't type text.
+        JButton record = new JButton(RECORD);
+        JLabel feedback = new JLabel(" ") {
+            @Override
+            public void setText(String text) {
+                // Wraps like the note below instead of widening the window.
+                super.setText(text == null || text.isBlank()
+                    ? " "
+                    : "<html><body style='width: 330px'>" + TagReport.esc(text) + "</body></html>");
+            }
+        };
+        feedback.setForeground(UIManager.getColor("Label.disabledForeground"));
+        boolean[] recording = {false};
+        Runnable stopRecording = () -> {
+            recording[0] = false;
+            record.setText(RECORD);
+        };
+        record.addActionListener(e -> {
+            recording[0] = true;
+            record.setText("Press the key now...");
+            feedback.setText(" ");
+            dialog.pack();
+        });
+        record.addKeyListener(new KeyAdapter() {
+            @Override
+            public void keyPressed(KeyEvent e) {
+                if (!recording[0]) {
+                    return;
+                }
+                e.consume(); // So Space, Enter and Esc don't also press a button or close the window.
+                int code = e.getKeyCode();
+                if (code == KeyEvent.VK_ESCAPE) {
+                    stopRecording.run();
+                    feedback.setText(" ");
+                } else if (TagHoverSettings.isAllowedKey(code)) {
+                    key.setSelectedItem(code);
+                    stopRecording.run();
+                    feedback.setText("Key set to " + TagHoverSettings.keyName(code) + ".");
+                } else {
+                    feedback.setText(KeyEvent.getKeyText(code) + " can't be the key, as it types text or is taken. "
+                        + "Try Ctrl, Shift, Alt, F1-F12, Insert, Pause or Scroll Lock.");
+                }
+                dialog.pack();
+            }
+        });
+        record.addFocusListener(new FocusAdapter() {
+            @Override
+            public void focusLost(FocusEvent e) {
+                stopRecording.run();
+            }
+        });
+
         // A fixed width makes the note wrap instead of stretching the window.
         JLabel note = new JLabel("<html><body style='width: 330px'>Saved for your Windows user on this computer. "
             + "Press Ctrl+Comma to open this window from any Vision client or the Designer.</body></html>");
@@ -81,23 +139,32 @@ final class SettingsDialog {
         GridBagConstraints c = new GridBagConstraints();
         c.anchor = GridBagConstraints.WEST;
         c.insets = new Insets(4, 4, 4, 4);
+        JPanel keyRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
+        keyRow.add(key);
+        keyRow.add(Box.createHorizontalStrut(8));
+        keyRow.add(record);
+
         c.gridx = 0;
         c.gridy = 0;
         form.add(new JLabel("Key:"), c);
         c.gridx = 1;
-        form.add(key, c);
-        c.gridx = 0;
+        form.add(keyRow, c);
         c.gridy = 1;
+        c.insets = new Insets(0, 4, 4, 4);
+        form.add(feedback, c);
+        c.gridx = 0;
+        c.gridy = 2;
+        c.insets = new Insets(4, 4, 4, 4);
         c.anchor = GridBagConstraints.NORTHWEST;
         form.add(new JLabel("Mode:"), c);
         c.gridx = 1;
         c.anchor = GridBagConstraints.WEST;
         form.add(hold, c);
-        c.gridy = 2;
+        c.gridy = 3;
         c.insets = new Insets(0, 4, 4, 4);
         form.add(toggle, c);
         c.gridx = 0;
-        c.gridy = 3;
+        c.gridy = 4;
         c.gridwidth = 2;
         c.insets = new Insets(10, 4, 4, 4);
         c.fill = GridBagConstraints.HORIZONTAL;

@@ -25,6 +25,15 @@ class TagHoverSettingsTest {
     }
 
     @Test
+    void onlyKeysThatDontTypeTextCanBeRecorded() {
+        assertTrue(TagHoverSettings.isAllowedKey(KeyEvent.VK_F4));
+        assertTrue(TagHoverSettings.isAllowedKey(KeyEvent.VK_SCROLL_LOCK));
+        assertFalse(TagHoverSettings.isAllowedKey(KeyEvent.VK_Q));
+        assertFalse(TagHoverSettings.isAllowedKey(KeyEvent.VK_SPACE));
+        assertFalse(TagHoverSettings.isAllowedKey(KeyEvent.VK_ESCAPE)); // Esc turns tap mode off.
+    }
+
+    @Test
     void modifierKeys() {
         assertTrue(new TagHoverSettings(KeyEvent.VK_SHIFT, Mode.HOLD).isModifierKey());
         assertTrue(new TagHoverSettings(KeyEvent.VK_ALT, Mode.HOLD).isModifierKey());

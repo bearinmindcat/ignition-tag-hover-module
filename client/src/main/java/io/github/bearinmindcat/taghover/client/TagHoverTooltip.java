@@ -226,6 +226,9 @@ public final class TagHoverTooltip implements AWTEventListener, KeyEventDispatch
 
     /** Returns {@code true} to consume the event. */
     private boolean onKey(KeyEvent e) {
+        if (dialogOpen) {
+            return false; // Keys belong to the settings window, which may be recording a new hotkey.
+        }
         TagHoverSettings s = settings;
         int id = e.getID();
         int code = e.getKeyCode();
