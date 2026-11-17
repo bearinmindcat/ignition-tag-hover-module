@@ -45,9 +45,11 @@ ignitionModule {
         )
     )
 
-    // Depend on Vision ("fpmi") so our classloader can see Vision's classes in clients and the Designer.
+    // Depend on Vision so our classloader can see Vision's classes in clients and the Designer.
+    // In Ignition 8 its module ID is com.inductiveautomation.vision; the old 7.x ID "fpmi" makes
+    // clients and the Designer skip this module.
     moduleDependencySpecs {
-        register("fpmi") {
+        register("com.inductiveautomation.vision") {
             scope = "CD"
             required = true
         }
