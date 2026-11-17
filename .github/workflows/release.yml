@@ -30,8 +30,8 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: "17"
@@ -55,7 +55,7 @@ jobs:
 
       - name: Keep the module (dry run)
         if: github.ref_type != 'tag'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: Tag-Hover-Tooltip-${{ steps.v.outputs.version }}-unsigned
           path: build/Tag-Hover-Tooltip.unsigned.modl
