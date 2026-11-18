@@ -34,6 +34,22 @@ public record TagReport(Component anchor, List<Section> sections) {
         BindingLine withVia(String newProperty, String newVia) {
             return new BindingLine(newProperty, kind, tagPath, pattern, newVia, badQuality, writable);
         }
+
+        BindingLine readOnly() {
+            return writable ? new BindingLine(property, kind, tagPath, pattern, via, badQuality, false) : this;
+        }
+
+        /** This UDT instance's member, e.g. {@code Amps} or {@code Alarms/High}. */
+        BindingLine member(String memberPath) {
+            return new BindingLine(
+                property,
+                kind.endsWith("UDT") ? kind + " member" : "UDT member",
+                tagPath == null ? null : tagPath + "/" + memberPath,
+                pattern == null ? null : pattern + "/" + memberPath,
+                via,
+                badQuality,
+                writable);
+        }
     }
 
     public boolean hasAnyLines() {

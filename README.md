@@ -28,7 +28,7 @@ Forum threads: [Vision: Tag Info popup on tag(s) under mouse](https://forum.indu
 </tr>
 </table>
 
-Also: direct and UDT tag bindings, property bindings followed back to their tag, template parameters, bad quality flags, and `↔` for bidirectional bindings. It works on every window with nothing to set up, and it's free, with no license or trial timer.
+Also: direct and UDT tag bindings, property bindings followed back to their tag, template parameters (including members of a UDT parameter, such as `Motor1/Amps`), bad quality flags, and `↔` for bidirectional bindings. It works on every window with nothing to set up, and it's free, with no license or trial timer.
 
 ## Requirements
 

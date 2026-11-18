@@ -45,6 +45,9 @@ public final class BindingInspector {
     /** How many property-to-property hops to follow when looking for the tag behind a value. */
     private static final int MAX_FOLLOW_DEPTH = 4;
 
+    /** Separates a UDT property from its member in binding paths (Vision's {@code UDTPropertyNode.UDT_SUBPROP_SEP}). */
+    private static final String UDT_MEMBER_SEP = "::";
+
     /** {@code {[default]Folder/Tag}} references inside expressions. */
     private static final Pattern EXPR_TAG_REF = Pattern.compile("\\{\\s*(\\[[^\\]]*\\][^}]*?)\\s*}");
 
@@ -136,7 +139,9 @@ public final class BindingInspector {
             if (source == null) {
                 return List.of();
             }
-            return followProperty(p.getTargetPropertyName(), source, depth, visited);
+            List<BindingLine> lines = followProperty(p.getTargetPropertyName(), source, depth, visited);
+            // Writing back to the tag takes every hop to be bidirectional, this one included.
+            return p.isBidirectional() ? lines : lines.stream().map(BindingLine::readOnly).toList();
         }
         return List.of();
     }
@@ -229,6 +234,15 @@ public final class BindingInspector {
             return List.of();
         }
 
+        // A member of a UDT parameter, e.g. Motor::Amps (Vision writes subfolders with dots): follow the
+        // parameter, then add the member to the UDT instance's path.
+        String member = null;
+        int sep = sourceProperty.indexOf(UDT_MEMBER_SEP);
+        if (sep > 0) {
+            member = sourceProperty.substring(sep + UDT_MEMBER_SEP.length()).replace('.', '/');
+            sourceProperty = sourceProperty.substring(0, sep);
+        }
+
         List<Adapter> sourceAdapters = adaptersForProperty(sourceComponent, sourceProperty);
         Component viaComponent = sourceComponent;
 
@@ -251,7 +265,8 @@ public final class BindingInspector {
         List<BindingLine> lines = new ArrayList<>();
         for (Adapter a : sourceAdapters) {
             for (BindingLine l : linesForAdapter(a, depth + 1, visited)) {
-                lines.add(l.withVia(targetProperty, l.via() != null ? l.via() : via));
+                BindingLine followed = member != null ? l.member(member) : l;
+                lines.add(followed.withVia(targetProperty, l.via() != null ? l.via() : via));
             }
         }
         return lines;

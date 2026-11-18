@@ -14,6 +14,7 @@ import com.inductiveautomation.factorypmi.application.binding.IndirectTagBinding
 import com.inductiveautomation.factorypmi.application.binding.PropertyInteractionDescriptor;
 import com.inductiveautomation.factorypmi.application.binding.SimpleBoundPropertyAdapter;
 import com.inductiveautomation.factorypmi.application.binding.SimpleBoundTagAdapter;
+import com.inductiveautomation.factorypmi.application.binding.UDTTagAdapter;
 import com.inductiveautomation.factorypmi.application.components.PMILabel;
 import com.inductiveautomation.factorypmi.application.components.template.TemplateHolder;
 import com.inductiveautomation.factorypmi.application.components.template.VisionTemplate;
@@ -152,6 +153,45 @@ class BindingInspectorTest {
         assertTrue(templateSection.template());
         assertEquals("Motor 1", templateSection.title());
         assertEquals("[default]Motors/M1", onlyLine(templateSection).tagPath());
+    }
+
+    @Test
+    void udtParameterMembersAreTracedToTheMemberTags() {
+        // Dropping the UDT Motor1 on a window makes a template instance whose Motor parameter has a two-way UDT
+        // binding; labels inside read Motor::Amps (subfolders written with dots).
+        TemplateHolder holder = new TemplateHolder();
+        holder.setName("MotorFace");
+        addTo(root, holder);
+        UDTTagAdapter udt = new UDTTagAdapter();
+        udt.setTarget(holder);
+        udt.setTargetPropertyName("Motor");
+        udt.setTagPathString("[default]Motors/Motor1");
+        udt.setBidirectional(true);
+        controller.setPropertyAdapter(holder, "Motor", udt);
+
+        VisionTemplate template = new VisionTemplate();
+        template.setName("MotorFace");
+        DefaultInteractionController templateController = new DefaultInteractionController();
+        template.setInteractionController(templateController);
+        addTo(holder, template);
+        PMILabel amps = label("Amps", template);
+        bindProperty(templateController, amps, "text", template, "Motor::Amps");
+        PMILabel alarm = label("Alarm", template);
+        bindProperty(templateController, alarm, "text", template, "Motor::Alarms.High");
+
+        TagReport report = inspector.inspect(amps);
+
+        BindingLine line = onlyLine(report.sections().get(0));
+        assertEquals("text", line.property());
+        assertEquals("[default]Motors/Motor1/Amps", line.tagPath());
+        assertEquals("UDT member", line.kind());
+        assertTrue(line.via().endsWith("MotorFace.Motor"), line.via());
+        // The label only reads: the parameter's two-way binding doesn't make it write.
+        assertFalse(line.writable());
+        assertTrue(onlyLine(report.sections().get(1)).writable());
+
+        assertEquals("[default]Motors/Motor1/Alarms/High",
+            onlyLine(inspector.inspect(alarm).sections().get(0)).tagPath());
     }
 
     @Test
