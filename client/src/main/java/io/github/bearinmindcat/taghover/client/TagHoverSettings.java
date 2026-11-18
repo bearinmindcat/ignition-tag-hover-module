@@ -22,10 +22,11 @@ public record TagHoverSettings(int keyCode, Mode mode, Set<Detail> shown) {
         TOGGLE
     }
 
-    /** The groups the settings window lists the details under. */
+    /** The groups the settings window lists the details under: bindings on the left, the rest on the right. */
     public enum Group {
         BINDINGS("Bindings"),
-        SOURCE("Where the tag's value comes from"),
+        SOURCE("Value source"),
+        PROPERTIES("Tag properties"),
         OTHER("Other");
 
         private final String title;
@@ -39,28 +40,44 @@ public record TagHoverSettings(int keyCode, Mode mode, Set<Detail> shown) {
         }
     }
 
-    /** One thing the tooltip can show, each with a checkbox in the settings window. All are on by default. */
+    /**
+     * One thing the tooltip can show, each with a checkbox in the settings window. Every label reads
+     * "Name (what it looks like in the tooltip)".
+     */
     public enum Detail {
-        PROPERTY(Group.BINDINGS, "Bound property and arrow, e.g. text ←"),
-        TWO_WAY(Group.BINDINGS, "↔ for two-way bindings"),
-        KIND(Group.BINDINGS, "Binding type: indirect, UDT, expression"),
-        PATTERN(Group.BINDINGS, "Indirect pattern, e.g. Motors/{1}/Amps"),
-        VIA(Group.BINDINGS, "Template parameter or property it comes through"),
-        QUALITY(Group.BINDINGS, "Bad quality warnings"),
-        COMPONENT_PATH(Group.BINDINGS, "Component's path in the window"),
-        TEMPLATES(Group.BINDINGS, "Template instance around the component"),
-        PLC_ADDRESS(Group.SOURCE, "PLC address (OPC item path)"),
-        OPC_SERVER(Group.SOURCE, "OPC server, when it isn't Ignition's own"),
-        TAG_SOURCES(Group.SOURCE, "Tags behind reference and expression tags"),
-        TAG_TYPE(Group.SOURCE, "Memory and query tags marked \"no PLC\""),
-        HINT(Group.OTHER, "Hint line at the bottom (Ctrl+Comma: settings)");
+        TAG_PATH(Group.BINDINGS, "SCADA tag (CP100/FLOATS/3)"),
+        PROPERTY(Group.BINDINGS, "Bound property (text ←)"),
+        TWO_WAY(Group.BINDINGS, "Two-way arrow (↔)"),
+        KIND(Group.BINDINGS, "Binding type (indirect, UDT, expression)"),
+        PATTERN(Group.BINDINGS, "Indirect pattern (Motors/{1}/Amps)"),
+        VIA(Group.BINDINGS, "Via (template parameter or property)"),
+        QUALITY(Group.BINDINGS, "Bad quality (Bad_NotFound)"),
+        COMPONENT_PATH(Group.BINDINGS, "Component path (Root Container.Label)"),
+        TEMPLATES(Group.BINDINGS, "Template instance (In template Motor 1)"),
+        PLC_ADDRESS(Group.SOURCE, "PLC tag ([CP100]F8:3)"),
+        OPC_SERVER(Group.SOURCE, "OPC server (if not Ignition's own)"),
+        TAG_SOURCES(Group.SOURCE, "Source tags (of reference and expression tags)"),
+        TAG_TYPE(Group.SOURCE, "No-PLC note (memory and query tags)"),
+        // A component bound to a tag is often also bound to the tag's own properties, which repeat the same tag.
+        FORMAT_STRING(Group.PROPERTIES, "Format string (.formatString)", false),
+        TOOLTIP(Group.PROPERTIES, "Tooltip (.tooltip)", false),
+        ENG_UNIT(Group.PROPERTIES, "Units (.engUnit)", false),
+        ENG_LIMITS(Group.PROPERTIES, "Scale limits (.engHigh, .engLow)", false),
+        OTHER_PROPERTIES(Group.PROPERTIES, "Other properties (.quality, .documentation)"),
+        HINT(Group.OTHER, "Hint line (Ctrl+Comma: settings)");
 
         private final Group group;
         private final String label;
+        private final boolean shownByDefault;
 
         Detail(Group group, String label) {
+            this(group, label, true);
+        }
+
+        Detail(Group group, String label, boolean shownByDefault) {
             this.group = group;
             this.label = label;
+            this.shownByDefault = shownByDefault;
         }
 
         public Group group() {
@@ -71,9 +88,31 @@ public record TagHoverSettings(int keyCode, Mode mode, Set<Detail> shown) {
             return label;
         }
 
+        public boolean shownByDefault() {
+            return shownByDefault;
+        }
+
         /** Details read from the tag's configuration on the Gateway, rather than from the window. */
         public boolean readsTagConfig() {
             return group == Group.SOURCE;
+        }
+
+        /**
+         * The checkbox for a binding to a tag property, e.g. {@code engUnit} or {@code formatString}; {@code null}
+         * for the tag's value itself.
+         */
+        public static Detail forTagProperty(String property) {
+            if (property == null || property.isEmpty()) {
+                return null;
+            }
+            return switch (property.toLowerCase(java.util.Locale.ROOT)) {
+                case "value" -> null;
+                case "formatstring" -> FORMAT_STRING;
+                case "tooltip" -> TOOLTIP;
+                case "engunit" -> ENG_UNIT;
+                case "enghigh", "englow" -> ENG_LIMITS;
+                default -> OTHER_PROPERTIES;
+            };
         }
     }
 
@@ -86,6 +125,19 @@ public record TagHoverSettings(int keyCode, Mode mode, Set<Detail> shown) {
 
     public static final Set<Detail> ALL_DETAILS = Collections.unmodifiableSet(EnumSet.allOf(Detail.class));
 
+    /** Everything except bindings to the tag's format, tooltip, units and limits. */
+    public static final Set<Detail> DEFAULT_DETAILS;
+
+    static {
+        EnumSet<Detail> defaults = EnumSet.noneOf(Detail.class);
+        for (Detail d : Detail.values()) {
+            if (d.shownByDefault()) {
+                defaults.add(d);
+            }
+        }
+        DEFAULT_DETAILS = Collections.unmodifiableSet(defaults);
+    }
+
     public static final TagHoverSettings DEFAULT = new TagHoverSettings(KeyEvent.VK_CONTROL, Mode.HOLD);
 
     public TagHoverSettings {
@@ -96,7 +148,7 @@ public record TagHoverSettings(int keyCode, Mode mode, Set<Detail> shown) {
             mode = Mode.HOLD;
         }
         if (shown == null) {
-            shown = ALL_DETAILS;
+            shown = DEFAULT_DETAILS;
         } else {
             EnumSet<Detail> copy = EnumSet.noneOf(Detail.class);
             copy.addAll(shown);
@@ -104,9 +156,9 @@ public record TagHoverSettings(int keyCode, Mode mode, Set<Detail> shown) {
         }
     }
 
-    /** All details shown. */
+    /** The default details shown. */
     public TagHoverSettings(int keyCode, Mode mode) {
-        this(keyCode, mode, ALL_DETAILS);
+        this(keyCode, mode, DEFAULT_DETAILS);
     }
 
     public boolean shows(Detail detail) {

@@ -45,10 +45,24 @@ class TagHoverSettingsTest {
     }
 
     @Test
-    void everyDetailIsShownByDefault() {
-        assertEquals(EnumSet.allOf(Detail.class), TagHoverSettings.DEFAULT.shown());
+    void everythingButTheTagsOwnFormatTooltipUnitsAndLimitsIsShownByDefault() {
+        EnumSet<Detail> expected = EnumSet.allOf(Detail.class);
+        expected.removeAll(EnumSet.of(Detail.FORMAT_STRING, Detail.TOOLTIP, Detail.ENG_UNIT, Detail.ENG_LIMITS));
+
+        assertEquals(expected, TagHoverSettings.DEFAULT.shown());
         assertTrue(TagHoverSettings.DEFAULT.readsTagConfig());
         assertEquals(TagHoverSettings.DEFAULT, new TagHoverSettings(KeyEvent.VK_CONTROL, Mode.HOLD, null));
+    }
+
+    @Test
+    void tagPropertiesMapToTheirCheckboxes() {
+        assertEquals(Detail.FORMAT_STRING, Detail.forTagProperty("formatString"));
+        assertEquals(Detail.TOOLTIP, Detail.forTagProperty("Tooltip"));
+        assertEquals(Detail.ENG_UNIT, Detail.forTagProperty("engUnit"));
+        assertEquals(Detail.ENG_LIMITS, Detail.forTagProperty("engHigh"));
+        assertEquals(Detail.ENG_LIMITS, Detail.forTagProperty("ENGLOW"));
+        assertEquals(Detail.OTHER_PROPERTIES, Detail.forTagProperty("Quality"));
+        assertEquals(null, Detail.forTagProperty("value"), "the value is the tag itself");
     }
 
     @Test
@@ -85,7 +99,7 @@ class TagHoverSettingsTest {
         try {
             assertEquals(TagHoverSettings.DEFAULT, store.load()); // Nothing saved yet.
 
-            EnumSet<Detail> some = EnumSet.allOf(Detail.class);
+            EnumSet<Detail> some = EnumSet.copyOf(TagHoverSettings.DEFAULT_DETAILS);
             some.remove(Detail.COMPONENT_PATH);
             some.remove(Detail.OPC_SERVER);
             TagHoverSettings shiftToggle = new TagHoverSettings(KeyEvent.VK_SHIFT, Mode.TOGGLE, some);
@@ -98,6 +112,15 @@ class TagHoverSettingsTest {
             node.remove("show.COMPONENT_PATH"); // As if saved by a version before this detail existed.
             node.remove("show.OPC_SERVER");
             assertEquals(TagHoverSettings.DEFAULT, store.load());
+
+            // Saved by 0.2.0, which had no tag property checkboxes: those come in at their defaults (off).
+            node.remove("show.FORMAT_STRING");
+            node.remove("show.ENG_UNIT");
+            node.putBoolean("show.ENG_LIMITS", true);
+            TagHoverSettings fromOlder = store.load();
+            assertFalse(fromOlder.shows(Detail.FORMAT_STRING));
+            assertFalse(fromOlder.shows(Detail.ENG_UNIT));
+            assertTrue(fromOlder.shows(Detail.ENG_LIMITS));
         } finally {
             Preferences.userRoot().node(path).removeNode();
         }

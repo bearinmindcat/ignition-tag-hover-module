@@ -61,7 +61,7 @@ public interface SettingsStore {
                 node.sync(); // Picks up a change saved by another client or Designer on this computer.
                 EnumSet<Detail> shown = EnumSet.noneOf(Detail.class);
                 for (Detail d : Detail.values()) {
-                    if (node.getBoolean(SHOW + d.name(), true)) { // Details added later start out shown.
+                    if (node.getBoolean(SHOW + d.name(), d.shownByDefault())) { // A detail added later: its default.
                         shown.add(d);
                     }
                 }

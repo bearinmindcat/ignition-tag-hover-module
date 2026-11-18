@@ -165,12 +165,57 @@ class TagReportTest {
         }
 
         String none = report.toHtml(EnumSet.noneOf(Detail.class), s, null);
-        assertTrue(none.contains("<b>Amps</b>"), none);
-        assertTrue(none.contains("<b>[default]Motors/M1/Amps</b>"), "the tag path always shows: " + none);
-        for (String part : List.of("Root Container.Amps", "&#8596;", "&#8592;", "indirect", "{1}", "via",
-            "Bad_NotFound", "In template", "CP900", "Kepware", "two-way")) {
-            assertFalse(none.contains(part), part + " still shown: " + none);
+        assertEquals("<html><b>Amps</b></html>", none, "only the component's name is left");
+    }
+
+    @Test
+    void scadaTagCanBeHiddenLeavingThePlcTagUnderTheName() {
+        TagSources s = sources(Map.of("[default]CP100/FLOATS/3", TagSource.opc(null, "[CP100]Global.F8.F8[3]")));
+
+        String html = render(without(Detail.TAG_PATH), s, tagLine("[default]CP100/FLOATS/3"));
+
+        assertFalse(html.contains("CP100/FLOATS/3"), html);
+        assertTrue(html.contains("<b>Label</b><br>&nbsp;&nbsp;<font color=gray>PLC</font> [CP100]Global.F8.F8[3]"), html);
+    }
+
+    @Test
+    void tagPropertyBindingsHaveTheirOwnCheckboxes() {
+        // What Vision adds when a tag is dropped on a numeric field, plus a quality binding.
+        List<BindingLine> lines = List.of(
+            tagLine("[default]CP100/FLOATS/3.formatString"),
+            tagLine("[default]CP100/FLOATS/3"),
+            tagLine("[default]CP100/FLOATS/3.engHigh"),
+            tagLine("[default]CP100/FLOATS/3.engLow"),
+            tagLine("[default]CP100/FLOATS/3.tooltip"),
+            tagLine("[default]CP100/FLOATS/3.engUnit"),
+            tagLine("[default]CP100/FLOATS/3.Quality"));
+        TagReport report = new TagReport(null, List.of(new Section("Numeric Text Field 30", null, false, lines)));
+
+        String defaults = report.toHtml(TagHoverSettings.DEFAULT_DETAILS, TagSources.NONE, null);
+        assertTrue(defaults.contains("<b>[default]CP100/FLOATS/3</b>"), defaults);
+        assertTrue(defaults.contains(".Quality"), "other properties show by default: " + defaults);
+        for (String hidden : List.of(".formatString", ".engHigh", ".engLow", ".tooltip", ".engUnit")) {
+            assertFalse(defaults.contains(hidden), hidden + " shown by default: " + defaults);
         }
+
+        EnumSet<Detail> limits = EnumSet.copyOf(TagHoverSettings.DEFAULT_DETAILS);
+        limits.add(Detail.ENG_LIMITS);
+        String withLimits = report.toHtml(limits, TagSources.NONE, null);
+        assertTrue(withLimits.contains(".engHigh") && withLimits.contains(".engLow"), withLimits);
+        assertFalse(withLimits.contains(".engUnit"), withLimits);
+
+        String all = report.toHtml(ALL, TagSources.NONE, null);
+        for (BindingLine l : lines) {
+            assertTrue(all.contains(l.tagPath()), l.tagPath() + " missing: " + all);
+        }
+    }
+
+    @Test
+    void aComponentBoundOnlyToHiddenPropertiesSaysSo() {
+        String html = render(TagHoverSettings.DEFAULT_DETAILS, TagSources.NONE, tagLine("[default]Tank1Level.tooltip"));
+
+        assertTrue(html.contains("Only bound to tag properties"), html);
+        assertFalse(html.contains("No tag bindings"), html);
     }
 
     @Test

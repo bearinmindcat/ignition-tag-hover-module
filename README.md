@@ -70,7 +70,7 @@ Uninstalling from the same page removes it from open clients too, without interr
 
 Hold **Ctrl** and hover over a component. The tooltip goes away when you let go, click, scroll, or press a shortcut such as Ctrl+C.
 
-Press **Ctrl+Comma** to open the settings, or in the Designer use **Tools → Tag Hover Settings…**. Scripts can open them with `system.taghover.openSettings()`, for example from a client menu item. Untick anything you don't want in the tooltip. With every "where the tag's value comes from" box unticked, it doesn't read tag settings from the Gateway at all.
+Press **Ctrl+Comma** to open the settings, or in the Designer use **Tools → Tag Hover Settings…**. Scripts can open them with `system.taghover.openSettings()`, for example from a client menu item. Untick anything you don't want in the tooltip. Bindings to a tag's own format string, tooltip, units and scale limits are hidden by default, since they repeat the same tag. With every "Value source" box unticked, it doesn't read tag settings from the Gateway at all.
 
 ## Building
 

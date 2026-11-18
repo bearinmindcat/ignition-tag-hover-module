@@ -182,6 +182,29 @@ class TagSourceLookupTest {
     }
 
     @Test
+    void pathsWithNoProviderUseTheProjectDefault() {
+        // How the plant's bindings are written: CP100/FLOATS/3, no [provider].
+        gateway.opc("[plant]CP100/FLOATS/3", "ns=1;s=[CP100]Global.F8.F8[3]");
+        TagSourceLookup plant = new TagSourceLookup(gateway, () -> "plant", now::get, Runnable::run);
+
+        plant.request(List.of("CP100/FLOATS/3", "CP100/FLOATS/3.formatString"), changes::incrementAndGet);
+
+        assertEquals(List.of("[plant]CP100/FLOATS/3"), gateway.tagsRead());
+        assertEquals("[CP100]Global.F8.F8[3]", plant.get("CP100/FLOATS/3").plcAddress());
+        assertEquals("[CP100]Global.F8.F8[3]", plant.get("CP100/FLOATS/3.formatString").plcAddress());
+    }
+
+    @Test
+    void withNoDefaultProviderKnownItTriesDefault() {
+        gateway.opc("[default]CP100/FLOATS/3", "ns=1;s=[CP100]Global.F8.F8[3]");
+        TagSourceLookup unknown = new TagSourceLookup(gateway, () -> null, now::get, Runnable::run);
+
+        unknown.request(List.of("CP100/FLOATS/3"), changes::incrementAndGet);
+
+        assertEquals("[CP100]Global.F8.F8[3]", unknown.get("CP100/FLOATS/3").plcAddress());
+    }
+
+    @Test
     void propertyPathsReadTheirTagOnce() {
         gateway.opc("[default]Tank1Level", "ns=1;s=[CP300]F8:23");
 

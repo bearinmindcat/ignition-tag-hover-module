@@ -16,7 +16,8 @@ public record TagReport(Component anchor, List<Section> sections) {
 
     private static final String INDENT = "&nbsp;&nbsp;";
     private static final String SOURCE_INDENT = "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;";
-    private static final String SOURCE_TAG_INDENT = SOURCE_INDENT + "&nbsp;&nbsp;&nbsp;";
+    /** How much further in the tags an expression tag reads go. */
+    private static final String SOURCE_TAG_STEP = "&nbsp;&nbsp;&nbsp;";
 
     /** One component's tag bindings: the hovered component itself, or a template instance around it. */
     public record Section(String title, String path, boolean template, List<BindingLine> lines) {}
@@ -101,13 +102,29 @@ public record TagReport(Component anchor, List<Section> sections) {
             : "<html>" + body + "<br><font color=gray size=-1>" + esc(hint) + "</font></html>";
     }
 
+    /** Lines bound to a tag property ({@code .engUnit}, {@code .formatString}...) have their own checkboxes. */
+    static boolean isShown(BindingLine line, Set<Detail> shown) {
+        String path = line.tagPath();
+        if (path == null || !TagSourceLookup.hasProperty(path)) {
+            return true;
+        }
+        Detail detail = Detail.forTagProperty(path.substring(TagSourceLookup.withoutProperty(path).length() + 1));
+        return detail == null || shown.contains(detail);
+    }
+
     private String bodyHtml(Set<Detail> shown, TagSources sources) {
         StringBuilder sb = new StringBuilder();
+        boolean tagPathShown = shown.contains(Detail.TAG_PATH);
+        // With the SCADA tag hidden, its PLC tag moves up under the component's name.
+        String sourceIndent = tagPathShown ? SOURCE_INDENT : INDENT;
+        List<List<BindingLine>> visible = sections.stream()
+            .map(s -> s.lines().stream().filter(l -> isShown(l, shown)).toList())
+            .toList();
         int shownLines = 0;
         int total = 0;
         for (int i = 0; i < sections.size(); i++) {
             if (i == 0 || shown.contains(Detail.TEMPLATES)) {
-                total += sections.get(i).lines().size();
+                total += visible.get(i).size();
             }
         }
 
@@ -126,7 +143,7 @@ public record TagReport(Component anchor, List<Section> sections) {
         for (int i = 0; i < sections.size(); i++) {
             Section section = sections.get(i);
             if (i > 0) {
-                if (section.lines().isEmpty() || !shown.contains(Detail.TEMPLATES)) {
+                if (visible.get(i).isEmpty() || !shown.contains(Detail.TEMPLATES)) {
                     continue;
                 }
                 sb.append("<br>");
@@ -145,19 +162,25 @@ public record TagReport(Component anchor, List<Section> sections) {
                 sb.append("<br><font color=gray>No tag bindings</font>");
                 continue;
             }
+            if (visible.get(i).isEmpty()) {
+                sb.append("<br><font color=gray>Only bound to tag properties, hidden in the settings (Ctrl+Comma)</font>");
+                continue;
+            }
 
-            for (BindingLine line : section.lines()) {
+            for (BindingLine line : visible.get(i)) {
                 if (shownLines == MAX_LINES) {
                     sb.append("<br><font color=gray>&hellip; ").append(total - shownLines).append(" more</font>");
                     return sb.toString();
                 }
                 shownLines++;
-                appendLine(sb, line, shown);
+                if (tagPathShown) {
+                    appendLine(sb, line, shown);
+                }
                 if (line.tagPath() != null) {
                     String key = sourceKey(line.tagPath());
                     boolean propertyOfValueBound = TagSourceLookup.hasProperty(line.tagPath()) && valueBound.contains(key);
                     if (!propertyOfValueBound && sourceShown.add(key)) {
-                        appendSource(sb, sources.get(line.tagPath()), shown, sources);
+                        appendSource(sb, sources.get(line.tagPath()), shown, sources, sourceIndent);
                     }
                 }
             }
@@ -198,47 +221,50 @@ public record TagReport(Component anchor, List<Section> sections) {
         }
     }
 
-    /** The line under a binding saying where its tag gets its value. */
-    private static void appendSource(StringBuilder sb, TagSource source, Set<Detail> shown, TagSources sources) {
+    /** The line under a binding saying where its tag gets its value, starting at {@code indent}. */
+    private static void appendSource(
+        StringBuilder sb, TagSource source, Set<Detail> shown, TagSources sources, String indent) {
+
         if (source == null) {
             return;
         }
+        String tagIndent = indent + SOURCE_TAG_STEP;
         switch (source.kind()) {
             case OPC, PENDING, MEMORY, QUERY -> {
                 String brief = brief(source, shown);
                 if (brief != null) {
-                    sb.append("<br>").append(SOURCE_INDENT).append(brief);
+                    sb.append("<br>").append(indent).append(brief);
                 }
             }
             case REFERENCE, DERIVED -> {
                 if (shown.contains(Detail.TAG_SOURCES) && !source.sourceTags().isEmpty()) {
                     String target = source.sourceTags().get(0);
-                    sb.append("<br>").append(SOURCE_INDENT).append("<font color=gray>")
+                    sb.append("<br>").append(indent).append("<font color=gray>")
                         .append(source.kind() == TagSource.Kind.REFERENCE ? "reference to " : "derived from ")
                         .append(esc(target)).append("</font>");
                     appendBriefOf(sb, sources.get(target), shown);
                 } else if (shown.contains(Detail.TAG_TYPE)) {
-                    sb.append("<br>").append(SOURCE_INDENT).append("<font color=gray>")
+                    sb.append("<br>").append(indent).append("<font color=gray>")
                         .append(source.kind() == TagSource.Kind.REFERENCE ? "reference tag" : "derived tag")
                         .append("</font>");
                 }
             }
             case EXPRESSION -> {
                 if (shown.contains(Detail.TAG_SOURCES) && !source.sourceTags().isEmpty()) {
-                    sb.append("<br>").append(SOURCE_INDENT).append("<font color=gray>expression tag, reading:</font>");
+                    sb.append("<br>").append(indent).append("<font color=gray>expression tag, reading:</font>");
                     List<String> tags = source.sourceTags();
                     for (int i = 0; i < tags.size(); i++) {
                         if (i == MAX_EXPRESSION_TAGS) {
-                            sb.append("<br>").append(SOURCE_TAG_INDENT).append("<font color=gray>&hellip; ")
+                            sb.append("<br>").append(tagIndent).append("<font color=gray>&hellip; ")
                                 .append(tags.size() - i).append(" more</font>");
                             break;
                         }
-                        sb.append("<br>").append(SOURCE_TAG_INDENT)
+                        sb.append("<br>").append(tagIndent)
                             .append("<font color=gray>").append(esc(tags.get(i))).append("</font>");
                         appendBriefOf(sb, sources.get(tags.get(i)), shown);
                     }
                 } else if (shown.contains(Detail.TAG_TYPE) || shown.contains(Detail.TAG_SOURCES)) {
-                    sb.append("<br>").append(SOURCE_INDENT).append("<font color=gray>expression tag</font>");
+                    sb.append("<br>").append(indent).append("<font color=gray>expression tag</font>");
                 }
             }
             default -> {

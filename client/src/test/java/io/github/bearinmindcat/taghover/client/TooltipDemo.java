@@ -95,6 +95,7 @@ public final class TooltipDemo {
 
         PMILabel level = box(root, "Tank 1 Level", "Tank 1 Level: 42.5 gal", 30, 30);
         bindTag(controller, level, "text", "[default]Site/Tank1/Level");
+        bindTag(controller, level, "toolTipText", "[default]Site/Tank1/Level.tooltip"); // Hidden by default.
         checks.add(new Check("direct-tag", level, "[default]Site/Tank1/Level"));
         checks.add(new Check("plc-address", level, "PLC</font> [CP300]F8:23"));
 
@@ -227,7 +228,7 @@ public final class TooltipDemo {
         TagHoverTooltip.install(ComponentLocator.DEFAULT, store, newSources());
         onEdt(() -> hover(level, true));
         Thread.sleep(250);
-        boolean before = shown("[CP300]F8:23") && shown("Root Container.Tank 1 Level");
+        boolean before = shown("[CP300]F8:23") && shown("Root Container.Tank 1 Level") && !shown(".tooltip");
         key(KeyEvent.KEY_RELEASED, KeyEvent.VK_CONTROL, 0, System.currentTimeMillis());
 
         TagHoverTooltip.openSettings();
@@ -249,11 +250,14 @@ public final class TooltipDemo {
             paint(settings.getRootPane(), new File(outDir, "30-settings-window.png"));
             JCheckBox plc = find(settings, JCheckBox.class, TagHoverSettings.Detail.PLC_ADDRESS.label());
             JCheckBox path = find(settings, JCheckBox.class, TagHoverSettings.Detail.COMPONENT_PATH.label());
+            JCheckBox tooltip = find(settings, JCheckBox.class, TagHoverSettings.Detail.TOOLTIP.label());
             JButton save = find(settings, JButton.class, "Save");
-            found.set(plc != null && path != null && save != null && plc.isSelected() && path.isSelected());
+            found.set(plc != null && path != null && tooltip != null && save != null
+                && plc.isSelected() && path.isSelected() && !tooltip.isSelected());
             if (found.get()) {
                 plc.doClick();
                 path.doClick();
+                tooltip.doClick();
                 save.doClick();
             } else {
                 settings.dispose();
@@ -265,10 +269,12 @@ public final class TooltipDemo {
         boolean savedOk = found.get()
             && !saved.shows(TagHoverSettings.Detail.PLC_ADDRESS)
             && !saved.shows(TagHoverSettings.Detail.COMPONENT_PATH)
+            && saved.shows(TagHoverSettings.Detail.TOOLTIP)
             && saved.shows(TagHoverSettings.Detail.TAG_SOURCES);
         onEdt(() -> hover(level, true));
         Thread.sleep(250);
-        boolean after = shown("[default]Site/Tank1/Level") && !shown("[CP300]") && !shown("Root Container.Tank 1");
+        boolean after = shown("[default]Site/Tank1/Level") && !shown("[CP300]") && !shown("Root Container.Tank 1")
+            && shown("[default]Site/Tank1/Level.tooltip");
         onEdt(() -> screenshot(new File(outDir, "31-details-off.png")));
         key(KeyEvent.KEY_RELEASED, KeyEvent.VK_CONTROL, 0, System.currentTimeMillis());
 

@@ -276,7 +276,7 @@ final class TagSourceLookup implements TagSources {
             if (source == null || source.isEmpty() || "~".equals(source)) {
                 String provider = defaultProvider.get();
                 if (provider == null || provider.isEmpty()) {
-                    return null;
+                    provider = "default"; // What 8.1 names the provider a new Gateway starts with.
                 }
                 return TagPathParser.parseSafe("[" + provider + "]" + p.toStringPartial());
             }
