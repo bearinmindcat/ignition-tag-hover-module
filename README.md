@@ -23,7 +23,7 @@ Forum threads: [Vision: Tag Info popup on tag(s) under mouse](https://forum.indu
 <td width="50%"><img src="docs/expression.png" alt="Ctrl held over a label bound to an expression: its text reads Tank1Mode and Tank1HighAlarm"><br><sub>Expressions list every tag they read, whether written as <code>{...}</code> or <code>tag("...")</code>.</sub></td>
 </tr>
 <tr>
-<td width="50%"><img src="docs/settings.png" alt="The Tag Hover Settings window: the key, hold or tap, and a checkbox for each thing the tooltip shows, such as the PLC address, the binding type and bad quality warnings"><br><sub>Ctrl+Comma opens the settings. Pick a key from the list or press it, choose to hold or tap it, and tick what the tooltip shows. Saved per Windows user.</sub></td>
+<td width="50%"><img src="docs/settings.png" alt="The Tag Hover Settings window: the key, hold or tap, and checkboxes grouped as Bindings, Value source, Tag properties and Other, such as SCADA tag, PLC tag and Units"><br><sub>Ctrl+Comma opens the settings. Pick a key from the list or press it, choose to hold or tap it, and tick what the tooltip shows. Saved per Windows user.</sub></td>
 <td width="50%"><img src="docs/tap-mode.png" alt="Tap mode: the tooltip over a tank stays on with no key held, with the hint Tap F2 or press Esc to stop"><br><sub>Tap mode: one tap and the tooltips follow the mouse with no key held, until another tap or Esc.</sub></td>
 </tr>
 </table>
