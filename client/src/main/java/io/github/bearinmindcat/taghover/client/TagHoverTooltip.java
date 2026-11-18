@@ -54,6 +54,7 @@ public final class TagHoverTooltip implements AWTEventListener, KeyEventDispatch
 
     private final ComponentLocator locator;
     private final SettingsStore store;
+    private final TagSources sources;
     private final BindingInspector inspector = new BindingInspector();
     private volatile TagHoverSettings settings;
 
@@ -77,20 +78,30 @@ public final class TagHoverTooltip implements AWTEventListener, KeyEventDispatch
     private boolean dialogOpen;
     private boolean loggedFailure;
 
-    private TagHoverTooltip(ComponentLocator locator, SettingsStore store) {
+    private TagHoverTooltip(ComponentLocator locator, SettingsStore store, TagSources sources) {
         this.locator = locator;
         this.store = store;
+        this.sources = sources;
         this.settings = store.load();
     }
 
-    /** Installs the tooltip with settings saved per Windows user. */
+    /** Installs the tooltip with settings saved per Windows user, showing tag paths only. */
     public static void install(ComponentLocator locator) {
-        install(locator, SettingsStore.preferences());
+        install(locator, TagSources.NONE);
     }
 
-    static synchronized void install(ComponentLocator locator, SettingsStore store) {
+    /** Installs the tooltip with settings saved per Windows user, showing where tags get their values. */
+    public static void install(ComponentLocator locator, TagSources sources) {
+        install(locator, SettingsStore.preferences(), sources);
+    }
+
+    static void install(ComponentLocator locator, SettingsStore store) {
+        install(locator, store, TagSources.NONE);
+    }
+
+    static synchronized void install(ComponentLocator locator, SettingsStore store, TagSources sources) {
         uninstall();
-        TagHoverTooltip t = new TagHoverTooltip(locator, store);
+        TagHoverTooltip t = new TagHoverTooltip(locator, store, sources);
         installed = t;
         Toolkit.getDefaultToolkit().addAWTEventListener(t, EVENT_MASK);
         KeyboardFocusManager.getCurrentKeyboardFocusManager().addKeyEventDispatcher(t);
@@ -351,6 +362,9 @@ public final class TagHoverTooltip implements AWTEventListener, KeyEventDispatch
 
     private String hint() {
         TagHoverSettings s = settings;
+        if (!s.shows(TagHoverSettings.Detail.HINT)) {
+            return null;
+        }
         return s.mode() == Mode.TOGGLE
             ? "Tap " + s.keyName() + " or press Esc to stop · Ctrl+Comma: settings"
             : "Ctrl+Comma: settings";
@@ -406,7 +420,12 @@ public final class TagHoverTooltip implements AWTEventListener, KeyEventDispatch
             return;
         }
 
-        String html = report.toHtml(hint());
+        TagHoverSettings s = settings;
+        if (s.readsTagConfig()) {
+            // Reads only the tags not known yet; when they arrive, the tooltip is redrawn with them.
+            sources.request(report.tagPaths(), this::refresh);
+        }
+        String html = report.toHtml(s.shown(), s.readsTagConfig() ? sources : TagSources.NONE, hint());
         if (popup != null && report.anchor() == shownFor && html.equals(shownHtml)) {
             return; // Already showing this.
         }
@@ -430,6 +449,17 @@ public final class TagHoverTooltip implements AWTEventListener, KeyEventDispatch
         popup.show();
         shownFor = report.anchor();
         shownHtml = html;
+    }
+
+    /** More tag sources arrived from the Gateway: redraw the tooltip if it is still up. Runs on the EDT. */
+    private void refresh() {
+        try {
+            if (popup != null && installed == this) {
+                showAtLastPoint();
+            }
+        } catch (Throwable t) {
+            failed(t);
+        }
     }
 
     /** The screen the window is on, minus the taskbar. */

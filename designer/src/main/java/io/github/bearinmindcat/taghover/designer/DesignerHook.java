@@ -1,5 +1,6 @@
 package io.github.bearinmindcat.taghover.designer;
 
+import io.github.bearinmindcat.taghover.client.ClientHook;
 import io.github.bearinmindcat.taghover.client.TagHoverScripts;
 import io.github.bearinmindcat.taghover.client.TagHoverTooltip;
 import com.inductiveautomation.ignition.common.licensing.LicenseState;
@@ -19,7 +20,7 @@ public class DesignerHook extends AbstractDesignerModuleHook {
 
     @Override
     public void startup(DesignerContext context, LicenseState activationState) throws Exception {
-        TagHoverTooltip.install(new DesignerComponentLocator());
+        TagHoverTooltip.install(new DesignerComponentLocator(), ClientHook.tagSources(context));
     }
 
     @Override

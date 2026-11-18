@@ -1,8 +1,11 @@
 package io.github.bearinmindcat.taghover.client;
 
+import io.github.bearinmindcat.taghover.client.TagHoverSettings.Detail;
+import io.github.bearinmindcat.taghover.client.TagHoverSettings.Group;
 import java.awt.Component;
 import java.awt.Dialog;
 import java.awt.FlowLayout;
+import java.awt.Font;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
@@ -11,9 +14,14 @@ import java.awt.event.FocusAdapter;
 import java.awt.event.FocusEvent;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
+import java.util.EnumMap;
+import java.util.EnumSet;
+import java.util.Map;
 import javax.swing.BorderFactory;
 import javax.swing.Box;
+import javax.swing.BoxLayout;
 import javax.swing.ButtonGroup;
+import javax.swing.JCheckBox;
 import javax.swing.DefaultListCellRenderer;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
@@ -26,7 +34,7 @@ import javax.swing.JRadioButton;
 import javax.swing.KeyStroke;
 import javax.swing.UIManager;
 
-/** The Tag Hover Settings window: which key, and hold or tap. */
+/** The Tag Hover Settings window: which key, hold or tap, and what the tooltip shows. */
 final class SettingsDialog {
 
     private static final String RECORD = "Press a key...";
@@ -63,7 +71,14 @@ final class SettingsDialog {
         };
         key.addActionListener(e -> describe.run());
 
-        setFields(key, hold, toggle, current);
+        // One checkbox per detail the tooltip can show, in a column per group.
+        Map<Detail, JCheckBox> boxes = new EnumMap<>(Detail.class);
+        for (Detail d : Detail.values()) {
+            boxes.put(d, new JCheckBox(d.label()));
+        }
+        JPanel details = detailsPanel(boxes);
+
+        setFields(key, hold, toggle, boxes, current);
 
         // "Press a key...": the next key pressed becomes the hotkey, if it's one that doesn't type text.
         JButton record = new JButton(RECORD);
@@ -123,14 +138,21 @@ final class SettingsDialog {
         note.setForeground(UIManager.getColor("Label.disabledForeground"));
 
         JButton defaults = new JButton("Restore defaults");
-        defaults.addActionListener(e -> setFields(key, hold, toggle, TagHoverSettings.DEFAULT));
+        defaults.addActionListener(e -> setFields(key, hold, toggle, boxes, TagHoverSettings.DEFAULT));
         JButton cancel = new JButton("Cancel");
         cancel.addActionListener(e -> dialog.dispose());
         JButton save = new JButton("Save");
         save.addActionListener(e -> {
+            EnumSet<Detail> shown = EnumSet.noneOf(Detail.class);
+            boxes.forEach((d, box) -> {
+                if (box.isSelected()) {
+                    shown.add(d);
+                }
+            });
             result[0] = new TagHoverSettings(
                 (Integer) key.getSelectedItem(),
-                toggle.isSelected() ? TagHoverSettings.Mode.TOGGLE : TagHoverSettings.Mode.HOLD);
+                toggle.isSelected() ? TagHoverSettings.Mode.TOGGLE : TagHoverSettings.Mode.HOLD,
+                shown);
             dialog.dispose();
         });
 
@@ -165,6 +187,14 @@ final class SettingsDialog {
         form.add(toggle, c);
         c.gridx = 0;
         c.gridy = 4;
+        c.insets = new Insets(10, 4, 4, 4);
+        c.anchor = GridBagConstraints.NORTHWEST;
+        form.add(new JLabel("Show:"), c);
+        c.gridx = 1;
+        c.anchor = GridBagConstraints.WEST;
+        form.add(details, c);
+        c.gridx = 0;
+        c.gridy = 5;
         c.gridwidth = 2;
         c.insets = new Insets(10, 4, 4, 4);
         c.fill = GridBagConstraints.HORIZONTAL;
@@ -191,10 +221,42 @@ final class SettingsDialog {
         return result[0];
     }
 
-    private static void setFields(
-        JComboBox<Integer> key, JRadioButton hold, JRadioButton toggle, TagHoverSettings settings) {
+    /** The groups side by side: bindings on the left, tag source and other on the right. */
+    private static JPanel detailsPanel(Map<Detail, JCheckBox> boxes) {
+        JPanel left = new JPanel();
+        left.setLayout(new BoxLayout(left, BoxLayout.Y_AXIS));
+        JPanel right = new JPanel();
+        right.setLayout(new BoxLayout(right, BoxLayout.Y_AXIS));
+        for (Group g : Group.values()) {
+            JPanel column = g == Group.BINDINGS ? left : right;
+            JLabel title = new JLabel(g.title());
+            title.setFont(title.getFont().deriveFont(Font.BOLD));
+            // A border, not a strut, for the gap: struts are centered and would shift the column in a BoxLayout.
+            title.setBorder(BorderFactory.createEmptyBorder(column.getComponentCount() > 0 ? 10 : 0, 0, 2, 0));
+            column.add(title);
+            for (Detail d : Detail.values()) {
+                if (d.group() == g) {
+                    column.add(boxes.get(d));
+                }
+            }
+        }
+        JPanel panel = new JPanel(new GridBagLayout());
+        GridBagConstraints c = new GridBagConstraints();
+        c.anchor = GridBagConstraints.NORTHWEST;
+        c.gridy = 0;
+        c.gridx = 0;
+        panel.add(left, c);
+        c.gridx = 1;
+        c.insets = new Insets(0, 18, 0, 0);
+        panel.add(right, c);
+        return panel;
+    }
+
+    private static void setFields(JComboBox<Integer> key, JRadioButton hold, JRadioButton toggle,
+        Map<Detail, JCheckBox> boxes, TagHoverSettings settings) {
 
         key.setSelectedItem(settings.keyCode()); // Fires the listener that rewrites the mode labels.
         (settings.mode() == TagHoverSettings.Mode.TOGGLE ? toggle : hold).setSelected(true);
+        boxes.forEach((d, box) -> box.setSelected(settings.shows(d)));
     }
 }

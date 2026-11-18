@@ -27,6 +27,9 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 import javax.imageio.ImageIO;
 import javax.swing.BorderFactory;
+import javax.swing.JButton;
+import javax.swing.JCheckBox;
+import javax.swing.JDialog;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
@@ -51,6 +54,20 @@ public final class TooltipDemo {
     private final JFrame frame = new JFrame("Tag Hover Tooltip demo (fake tags, no Gateway)");
     private final List<Check> checks = new ArrayList<>();
 
+    /** Tag configurations a plant Gateway might have, read the way the module reads the real ones. */
+    private static final FakeTagConfig GATEWAY = new FakeTagConfig()
+        .opc("[default]Site/Tank1/Level", "ns=1;s=[CP300]F8:23")
+        .reference("[default]Site/Tank1/HighAlarm", "[.]../PLC/HighSwitch")
+        .opc("[default]Site/PLC/HighSwitch", "ns=1;s=[CP100]Global.F8.F8[17]")
+        .memory("[default]Site/Tank1/Mode")
+        .expression("[default]Site/TotalEffluent", "{[.]FIT704} + {[.]FIT718}")
+        .opc("[default]Site/FIT704", "ns=1;s=[CP400]Global.F8.F8[119]")
+        .opc("[default]Site/FIT718", "ns=1;s=[CP400]Global.F8.F8[121]");
+
+    private static TagSources newSources() {
+        return new TagSourceLookup(GATEWAY, () -> "default", System::currentTimeMillis, SwingUtilities::invokeLater);
+    }
+
     public static void main(String[] args) throws Exception {
         boolean check = args.length > 0 && "--check".equals(args[0]);
         File outDir = new File(args.length > 1 ? args[1] : "build/demo");
@@ -58,7 +75,8 @@ public final class TooltipDemo {
         AtomicReference<TooltipDemo> demo = new AtomicReference<>();
         SwingUtilities.invokeAndWait(() -> demo.set(new TooltipDemo()));
         // Settings stay in memory, so the demo never changes the user's real Tag Hover settings.
-        TagHoverTooltip.install(ComponentLocator.DEFAULT, SettingsStore.inMemory(TagHoverSettings.DEFAULT));
+        TagHoverTooltip.install(
+            ComponentLocator.DEFAULT, SettingsStore.inMemory(TagHoverSettings.DEFAULT), newSources());
 
         if (check) {
             int failures = demo.get().runChecks(outDir);
@@ -73,11 +91,12 @@ public final class TooltipDemo {
         root.setInteractionController(controller);
         root.setName("Root Container"); // What a real window's root is called.
         root.setBackground(Color.WHITE);
-        root.setPreferredSize(new Dimension(1000, 560));
+        root.setPreferredSize(new Dimension(1000, 640));
 
         PMILabel level = box(root, "Tank 1 Level", "Tank 1 Level: 42.5 gal", 30, 30);
         bindTag(controller, level, "text", "[default]Site/Tank1/Level");
         checks.add(new Check("direct-tag", level, "[default]Site/Tank1/Level"));
+        checks.add(new Check("plc-address", level, "PLC</font> [CP300]F8:23"));
 
         PMILabel amps = box(root, "Motor Amps", "Motor Amps: 12.1 A", 330, 30);
         IndirectTagBindingAdapter indirect = new IndirectTagBindingAdapter();
@@ -99,6 +118,8 @@ public final class TooltipDemo {
             "if({[default]Site/Tank1/HighAlarm}, 'HIGH', tag(\"[default]Site/Tank1/Mode\"))");
         controller.setPropertyAdapter(status, "text", expression);
         checks.add(new Check("expression", status, "[default]Site/Tank1/HighAlarm"));
+        checks.add(new Check("reference-tag", status, "PLC</font> [CP100]Global.F8.F8[17]"));
+        checks.add(new Check("memory-tag", status, "memory tag, no PLC"));
 
         PMILabel copy = box(root, "Level Copy", "Level Copy: 42.5 gal", 30, 200);
         bindProperty(controller, copy, "text", level, "text");
@@ -129,6 +150,10 @@ public final class TooltipDemo {
 
         PMILabel plain = box(root, "Plain Label", "Plain label (no tags)", 630, 200);
         checks.add(new Check("no-bindings", plain, "No tag bindings"));
+
+        PMILabel total = box(root, "Total Effluent", "Total Effluent: 3.2 MGD", 30, 370);
+        bindTag(controller, total, "text", "[default]Site/TotalEffluent");
+        checks.add(new Check("expression-tag", total, "PLC</font> [CP400]Global.F8.F8[121]"));
 
         JLabel help = new JLabel(
             "Hold Ctrl and hover over a box. These are real Vision components with fake tag bindings.",
@@ -186,15 +211,94 @@ public final class TooltipDemo {
         System.out.printf("%s  %-20s%n", quiet ? "PASS" : "FAIL", "no-ctrl-no-tooltip");
 
         failures += hotkeyChecks(outDir);
+        failures += settingsWindowChecks(outDir);
 
         System.out.println(failures == 0 ? "All demo checks passed." : failures + " demo check(s) failed.");
         return failures;
     }
 
+    /**
+     * Opens the settings window the way Ctrl+Comma does, unticks two details, saves, and checks the tooltip leaves
+     * them out. Returns the number of failures.
+     */
+    private int settingsWindowChecks(File outDir) throws Exception {
+        Component level = target("direct-tag");
+        SettingsStore store = SettingsStore.inMemory(TagHoverSettings.DEFAULT);
+        TagHoverTooltip.install(ComponentLocator.DEFAULT, store, newSources());
+        onEdt(() -> hover(level, true));
+        Thread.sleep(250);
+        boolean before = shown("[CP300]F8:23") && shown("Root Container.Tank 1 Level");
+        key(KeyEvent.KEY_RELEASED, KeyEvent.VK_CONTROL, 0, System.currentTimeMillis());
+
+        TagHoverTooltip.openSettings();
+        JDialog dialog = null;
+        for (int i = 0; i < 40 && dialog == null; i++) {
+            Thread.sleep(100);
+            for (java.awt.Window w : java.awt.Window.getWindows()) {
+                if (w instanceof JDialog d && d.isShowing() && "Tag Hover Settings".equals(d.getTitle())) {
+                    dialog = d;
+                }
+            }
+        }
+        if (dialog == null) {
+            return report("settings-window-opens", false);
+        }
+        JDialog settings = dialog;
+        AtomicReference<Boolean> found = new AtomicReference<>(false);
+        onEdt(() -> {
+            paint(settings.getRootPane(), new File(outDir, "30-settings-window.png"));
+            JCheckBox plc = find(settings, JCheckBox.class, TagHoverSettings.Detail.PLC_ADDRESS.label());
+            JCheckBox path = find(settings, JCheckBox.class, TagHoverSettings.Detail.COMPONENT_PATH.label());
+            JButton save = find(settings, JButton.class, "Save");
+            found.set(plc != null && path != null && save != null && plc.isSelected() && path.isSelected());
+            if (found.get()) {
+                plc.doClick();
+                path.doClick();
+                save.doClick();
+            } else {
+                settings.dispose();
+            }
+        });
+        Thread.sleep(250);
+
+        TagHoverSettings saved = store.load();
+        boolean savedOk = found.get()
+            && !saved.shows(TagHoverSettings.Detail.PLC_ADDRESS)
+            && !saved.shows(TagHoverSettings.Detail.COMPONENT_PATH)
+            && saved.shows(TagHoverSettings.Detail.TAG_SOURCES);
+        onEdt(() -> hover(level, true));
+        Thread.sleep(250);
+        boolean after = shown("[default]Site/Tank1/Level") && !shown("[CP300]") && !shown("Root Container.Tank 1");
+        onEdt(() -> screenshot(new File(outDir, "31-details-off.png")));
+        key(KeyEvent.KEY_RELEASED, KeyEvent.VK_CONTROL, 0, System.currentTimeMillis());
+
+        install(KeyEvent.VK_CONTROL, TagHoverSettings.Mode.HOLD);
+        return report("settings-checkboxes", before && savedOk && after);
+    }
+
+    private Component target(String checkName) {
+        return checks.stream().filter(c -> c.name().equals(checkName)).findFirst().orElseThrow().target();
+    }
+
+    private static <T extends Component> T find(Container in, Class<T> type, String text) {
+        for (Component c : in.getComponents()) {
+            if (type.isInstance(c) && c instanceof javax.swing.AbstractButton b && text.equals(b.getText())) {
+                return type.cast(c);
+            }
+            if (c instanceof Container sub) {
+                T hit = find(sub, type, text);
+                if (hit != null) {
+                    return hit;
+                }
+            }
+        }
+        return null;
+    }
+
     /** Other hotkeys, toggle mode and shortcuts. Returns the number of failures. */
     private int hotkeyChecks(File outDir) throws Exception {
-        Component first = checks.get(0).target();
-        Component second = checks.get(1).target();
+        Component first = target("direct-tag");
+        Component second = target("indirect-tag");
         int failures = 0;
         long t = System.currentTimeMillis();
 
@@ -264,7 +368,8 @@ public final class TooltipDemo {
     }
 
     private static void install(int keyCode, TagHoverSettings.Mode mode) {
-        TagHoverTooltip.install(ComponentLocator.DEFAULT, SettingsStore.inMemory(new TagHoverSettings(keyCode, mode)));
+        TagHoverTooltip.install(
+            ComponentLocator.DEFAULT, SettingsStore.inMemory(new TagHoverSettings(keyCode, mode)), newSources());
     }
 
     private boolean key(int id, int keyCode, int modifiers, long when) throws Exception {
@@ -302,8 +407,11 @@ public final class TooltipDemo {
 
     /** Paints the window (including a lightweight tooltip popup) to a PNG, without capturing the screen. */
     private void screenshot(File file) {
+        paint(frame.getRootPane(), file);
+    }
+
+    private static void paint(Container rootPane, File file) {
         try {
-            Container rootPane = frame.getRootPane();
             BufferedImage image = new BufferedImage(
                 rootPane.getWidth(), rootPane.getHeight(), BufferedImage.TYPE_INT_RGB);
             Graphics2D g = image.createGraphics();
